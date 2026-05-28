@@ -1,666 +1,386 @@
-# Diagrama de Clases - Arquitectura PHP
+# Diagrama Entidad-Relación - Inventario Herzab
 
-## Diagrama de Clases UML
-
-```mermaid
-classDiagram
-    %% ============================================================================
-    %% CORE FRAMEWORK
-    %% ============================================================================
-    class Request {
-        -method: string
-        -path: string
-        -query: array
-        -post: array
-        -headers: array
-        +getMethod(): string
-        +getPath(): string
-        +getQuery(key): mixed
-        +getPost(key): mixed
-        +getHeader(key): string
-    }
-    
-    class Response {
-        -statusCode: int
-        -headers: array
-        -body: string
-        +setStatusCode(code): void
-        +setHeader(key, value): void
-        +json(data): void
-        +send(): void
-    }
-    
-    class Router {
-        -routes: array
-        +get(path, handler): void
-        +post(path, handler): void
-        +put(path, handler): void
-        +delete(path, handler): void
-        +match(method, path): array
-    }
-    
-    class Route {
-        -method: string
-        -path: string
-        -handler: callable
-        +match(method, path): bool
-        +getHandler(): callable
-    }
-    
-    class Database {
-        -connection: PDO
-        -dsn: string
-        -user: string
-        -password: string
-        +connect(): PDO
-        +query(sql): PDOStatement
-        +execute(sql, params): mixed
-        +close(): void
-    }
-    
-    class Auth {
-        -user: User
-        -token: string
-        +login(email, password): bool
-        +logout(): void
-        +check(): bool
-        +user(): User
-        +hasPermission(code): bool
-    }
-    
-    class Session {
-        +start(): void
-        +set(key, value): void
-        +get(key): mixed
-        +has(key): bool
-        +destroy(): void
-    }
-    
-    class View {
-        -template: string
-        -data: array
-        +render(template, data): string
-        +include(file): void
-    }
-    
-    class Url {
-        +route(name, params): string
-        +asset(path): string
-        +current(): string
-    }
-    
-    class Env {
-        -values: array
-        +load(): void
-        +get(key, default): mixed
-    }
-    
-    %% ============================================================================
-    %% MODELOS (Base de Datos)
-    %% ============================================================================
-    class Model {
-        #table: string
-        #fillable: array
-        #primaryKey: string
-        #db: Database
-        +find(id): Model
-        +all(): array
-        +where(column, operator, value): Model
-        +create(data): bool
-        +update(data): bool
-        +delete(): bool
-        +save(): bool
-    }
-    
-    class UserModel extends Model {
-        -id: int
-        -nombre: string
-        -email: string
-        -password_hash: string
-        -habilitado: bool
-        +getRoles(): array
-        +getPermissions(): array
-        +getOficinas(): array
-        +hasPermission(code): bool
-    }
-    
-    class MaterialModel extends Model {
-        -id: int
-        -codigo: string
-        -descripcion: string
-        -id_categoria: int
-        -id_marca: int
-        -id_unidad: int
-        -habilitado: bool
-        +getCategoria(): CategoriaModel
-        +getMarca(): MarcaModel
-        +getUnidad(): UnidadModel
-        +getStock(): array
-    }
-    
-    class StockModel extends Model {
-        -id: int
-        -id_material: int
-        -id_ubicacion: int
-        -cantidad_actual: int
-        -stock_minimo: int
-        -estado: string
-        -habilitado: bool
-        +getMaterial(): MaterialModel
-        +getUbicacion(): UbicacionModel
-        +ajustar(cantidad): void
-        +estado(): string
-    }
-    
-    class SolicitudModel extends Model {
-        -id: int
-        -codigo: string
-        -fecha: string
-        -fecha_aprobacion: string
-        -id_tipo_sol: int
-        -id_proveedor: int
-        -estado: string
-        -origen: string
-        +getDetalles(): array
-        +getSolicitante(): UserModel
-        +getAprobador(): UserModel
-        +getMaterial(): MaterialModel
-        +aprobar(): void
-        +rechazar(): void
-    }
-    
-    class UbicacionModel extends Model {
-        -id: int
-        -id_oficina: int
-        -id_almacen: int
-        -nombre: string
-        -habilitado: bool
-        +getOficina(): OficinaModel
-        +getAlmacen(): AlmacenModel
-        +getStock(): array
-    }
-    
-    class OficinaModel extends Model {
-        -id: int
-        -codigo: string
-        -nombre: string
-        -numero_pisos: int
-        -direccion: string
-        -habilitado: bool
-        +getUbicaciones(): array
-    }
-    
-    class RoleModel extends Model {
-        -id: int
-        -codigo: string
-        -nombre: string
-        -descripcion: string
-        -habilitado: bool
-        +getPermisos(): array
-    }
-    
-    class PermissionModel extends Model {
-        -id: int
-        -codigo: string
-        -nombre: string
-        -modulo: string
-        -habilitado: bool
-        +getRoles(): array
-    }
-    
-    class CategoriaModel extends Model {
-        -id: int
-        -nombre: string
-        -habilitado: bool
-        +getMateriales(): array
-    }
-    
-    class MarcaModel extends Model {
-        -id: int
-        -nombre: string
-        -habilitado: bool
-        +getMateriales(): array
-    }
-    
-    class UnidadModel extends Model {
-        -id: int
-        -nombre: string
-        -habilitado: bool
-        +getMateriales(): array
-    }
-    
-    class ProveedorModel extends Model {
-        -id: int
-        -ruc: string
-        -razon_social: string
-        -telefono: string
-        -direccion: string
-        -habilitado: bool
-    }
-    
-    class MovimientoModel extends Model {
-        -id: int
-        -codigo: string
-        -id_stock: int
-        -id_detalle: int
-        -estado: string
-        -fecha: string
-        +getStock(): StockModel
-        +getDetalle(): DetalleModel
-        +realizar(): void
-    }
-    
-    class InventarioModel extends Model {
-        +getInventarioCompleto(): array
-        +getInventarioPorOficina(oficina_id): array
-        +getInventarioBajo(): array
-        +getHistorialMovimientos(stock_id): array
-    }
-    
-    %% ============================================================================
-    %% REPOSITORIES (Acceso a Datos)
-    %% ============================================================================
-    class Repository {
-        #db: Database
-        #table: string
-        +find(id): mixed
-        +all(): array
-        +findBy(column, value): mixed
-        +create(data): mixed
-        +update(id, data): bool
-        +delete(id): bool
-    }
-    
-    class UserRepository extends Repository {
-        +findByEmail(email): UserModel
-        +findWithRoles(id): UserModel
-        +getRoles(user_id): array
-        +getPermissions(user_id): array
-    }
-    
-    class MaterialRepository extends Repository {
-        +findByCodigo(codigo): MaterialModel
-        +getActivos(): array
-        +getConStockBajo(): array
-    }
-    
-    class StockRepository extends Repository {
-        +getStockPorMaterial(material_id): array
-        +getStockPorUbicacion(ubicacion_id): array
-        +getEstadisticas(): array
-    }
-    
-    class SolicitudRepository extends Repository {
-        +getPendientes(): array
-        +getAprobadas(): array
-        +getRechazadas(): array
-        +getPorUsuario(user_id): array
-    }
-    
-    class InventarioRepository extends Repository {
-        +getInventarioCompleto(filtros): array
-        +getResumenPorOficina(): array
-        +getStockBajo(): array
-    }
-    
-    class OficinaRepository extends Repository {
-        +getActivas(): array
-        +getConUbicaciones(): array
-    }
-    
-    class UbicacionRepository extends Repository {
-        +getPorOficina(oficina_id): array
-    }
-    
-    class RegistroMaterialRepository extends Repository {
-        +getPendientes(): array
-        +getAtendidas(): array
-        +getRechazadas(): array
-    }
-    
-    class CatalogoRepository extends Repository {
-        +getCategorias(): array
-        +getMarcas(): array
-        +getUnidades(): array
-    }
-    
-    class ProveedorRepository extends Repository {
-        +getActivos(): array
-    }
-    
-    %% ============================================================================
-    %% SERVICIOS (Lógica de Negocio)
-    %% ============================================================================
-    class Service {
-        #repository: Repository
-        +__construct(repo): void
-    }
-    
-    class SolicitudCreadorService extends Service {
-        +crearEntrada(data): Solicitud
-        +crearSalida(data): Solicitud
-        +validar(data): bool
-        -generarCodigo(): string
-    }
-    
-    class SolicitudDecisionService extends Service {
-        +aprobar(solicitud_id, user_id): void
-        +rechazar(solicitud_id, user_id): void
-        -crearMovimientos(solicitud_id): void
-        -actualizarStock(movimiento): void
-    }
-    
-    class SolicitudEntradaService extends Service {
-        +procesarEntrada(solicitud_id): void
-        +validarProveedor(proveedor_id): bool
-    }
-    
-    class StockAjusteService extends Service {
-        +ajustar(stock_id, cantidad): void
-        +validarCantidad(cantidad): bool
-    }
-    
-    class StockManualService extends Service {
-        +crearAjusteManual(data): Solicitud
-        +aplicarAjuste(solicitud_id): void
-    }
-    
-    class RegistroMaterialCreadorService extends Service {
-        +crearRegistro(data): RegistroMaterial
-        +validar(data): bool
-    }
-    
-    class RegistroMaterialDecisionService extends Service {
-        +atender(registro_id, material_data): void
-        +rechazar(registro_id): void
-    }
-    
-    %% ============================================================================
-    %% CONTROLADORES
-    %% ============================================================================
-    class Controller {
-        #auth: Auth
-        #response: Response
-        #view: View
-        +__construct(auth, response, view): void
-        +authorize(permission): void
-    }
-    
-    class HomeController extends Controller {
-        +index(): void
-    }
-    
-    class AdminController extends Controller {
-        +dashboard(): void
-        +usuarios(): void
-        +roles(): void
-    }
-    
-    class InventarioController extends Controller {
-        -inventarioRepo: InventarioRepository
-        +index(): void
-        +buscar(): void
-        +detalles(material_id): void
-        +ajusteManual(): void
-    }
-    
-    class SolicitudesController extends Controller {
-        -solicitudCreador: SolicitudCreadorService
-        -solicitudDecision: SolicitudDecisionService
-        +crearEntrada(): void
-        +crearSalida(): void
-        +pendientes(): void
-        +aprobar(solicitud_id): void
-        +rechazar(solicitud_id): void
-    }
-    
-    class RegistroMaterialController extends Controller {
-        -registroCreador: RegistroMaterialCreadorService
-        -registroDecision: RegistroMaterialDecisionService
-        +pedir(): void
-        +misPedidos(): void
-        +pendientes(): void
-        +atender(registro_id): void
-    }
-    
-    class AuthController extends Controller {
-        -userRepo: UserRepository
-        +login(): void
-        +logout(): void
-        +verificar(): void
-    }
-    
-    %% ============================================================================
-    %% PROVIDERS (Inyección de Dependencias)
-    %% ============================================================================
-    class ServiceProvider {
-        +register(): void
-        +boot(): void
-    }
-    
-    class AppServiceProvider extends ServiceProvider {
-        +register(): void
-    }
-    
-    class AuthServiceProvider extends ServiceProvider {
-        +register(): void
-        +bootAuthorizacion(): void
-    }
-    
-    class InventarioServiceProvider extends ServiceProvider {
-        +register(): void
-        +registrarServicios(): void
-    }
-    
-    %% ============================================================================
-    %% RELACIONES
-    %% ============================================================================
-    
-    %% Database connections
-    Router --> Request
-    Router --> Response
-    Router --> Controller
-    Controller --> Response
-    Controller --> View
-    Controller --> Auth
-    
-    %% Auth
-    Auth --> UserModel
-    Auth --> Session
-    
-    %% Repositories
-    Repository --> Database
-    UserRepository --> UserModel
-    MaterialRepository --> MaterialModel
-    StockRepository --> StockModel
-    SolicitudRepository --> SolicitudModel
-    InventarioRepository --> InventarioModel
-    
-    %% Services
-    Service --> Repository
-    SolicitudCreadorService --> SolicitudRepository
-    SolicitudDecisionService --> SolicitudRepository
-    SolicitudDecisionService --> StockRepository
-    SolicitudDecisionService --> MovimientoModel
-    StockAjusteService --> StockRepository
-    StockManualService --> StockRepository
-    
-    %% Controllers
-    Controller --> Service
-    InventarioController --> InventarioRepository
-    SolicitudesController --> SolicitudCreadorService
-    SolicitudesController --> SolicitudDecisionService
-    RegistroMaterialController --> RegistroMaterialCreadorService
-    RegistroMaterialController --> RegistroMaterialDecisionService
-    
-    %% Model relationships
-    SolicitudModel --> UserModel
-    SolicitudModel --> MaterialModel
-    MaterialModel --> CategoriaModel
-    MaterialModel --> MarcaModel
-    MaterialModel --> UnidadModel
-    StockModel --> MaterialModel
-    StockModel --> UbicacionModel
-    UbicacionModel --> OficinaModel
-    UserModel --> RoleModel
-    RoleModel --> PermissionModel
-    MovimientoModel --> StockModel
-```
-
----
-
-## Arquitectura en Capas
+## Diagrama ER Completo
 
 ```mermaid
-graph TD
-    A[Routes/API] --> B[Controllers]
-    B --> C[Services]
-    C --> D[Repositories]
-    D --> E[Models]
-    E --> F[Database]
+erDiagram
+    %% CATÁLOGOS / MAESTROS
+    TIPO_SOLICITUD ||--o{ SOLICITUD : "define"
+    PROVEEDOR ||--o{ SOLICITUD : "suministra"
+    CATEGORIA ||--o{ MATERIAL : "clasifica"
+    MARCA ||--o{ MATERIAL : "fabrica"
+    UNIDAD ||--o{ MATERIAL : "medida"
+    ALMACEN ||--o{ UBICACION : "contiene"
+    OFICINA ||--o{ UBICACION : "localiza"
     
-    G[Middleware] --> B
-    H[Exceptions] --> B
-    I[Providers] --> J[IoC Container]
+    %% TABLAS DE NEGOCIO
+    MATERIAL ||--o{ STOCK : "inventariado"
+    UBICACION ||--o{ STOCK : "ubicación"
+    SOLICITUD ||--o{ DETALLE_SOLICITUD : "detalla"
+    MATERIAL ||--o{ DETALLE_SOLICITUD : "solicita"
+    STOCK ||--o{ MOVIMIENTO : "afecta"
+    DETALLE_SOLICITUD ||--o{ MOVIMIENTO : "genera"
     
-    style A fill:#e1f5ff
-    style B fill:#fff3e0
-    style C fill:#f3e5f5
-    style D fill:#e8f5e9
-    style E fill:#fce4ec
-    style F fill:#f1f8e9
+    %% SOLICITUD DE REGISTRO DE MATERIAL
+    SOLICITUD_REGISTRO_MAT ||--o{ DETALLE_REGISTRO_MAT : "especifica"
+    
+    %% AUTENTICACIÓN Y AUTORIZACIÓN
+    USUARIO ||--o{ SOLICITUD : "crea_solicitud"
+    USUARIO ||--o{ SOLICITUD : "aprueba_solicitud"
+    USUARIO ||--o{ SOLICITUD : "mueve_stock"
+    USUARIO ||--o{ SOLICITUD_REGISTRO_MAT : "pide_registro"
+    USUARIO ||--o{ SOLICITUD_REGISTRO_MAT : "atiende_registro"
+    USUARIO ||--o{ USUARIO_ROL : "tiene"
+    USUARIO ||--o{ USUARIO_OFICINA : "pertenece"
+    ROL ||--o{ USUARIO_ROL : "asigna"
+    ROL ||--o{ ROL_PERMISO : "otorga"
+    PERMISO ||--o{ ROL_PERMISO : "define"
+    OFICINA ||--o{ USUARIO_OFICINA : "acceso"
+    
+    %% MIGRACIONES
+    MIGRACIONES ||--|| "CONTROL" : "registra"
+
+    %% === ENTIDADES CON ATRIBUTOS ===
+    
+    TIPO_SOLICITUD {
+        int id PK
+        string nombre UK
+    }
+    
+    PROVEEDOR {
+        int id PK
+        char ruc UK
+        string razon_social
+        string telefono
+        string direccion
+        boolean habilitado
+    }
+    
+    CATEGORIA {
+        int id PK
+        string nombre UK
+        boolean habilitado
+    }
+    
+    MARCA {
+        int id PK
+        string nombre UK
+        boolean habilitado
+    }
+    
+    UNIDAD {
+        int id PK
+        string nombre UK
+        boolean habilitado
+    }
+    
+    ALMACEN {
+        int id PK
+        string nombre UK
+        boolean habilitado
+    }
+    
+    OFICINA {
+        int id PK
+        char codigo UK
+        string nombre UK
+        int numero_pisos
+        string direccion
+        boolean habilitado
+    }
+    
+    MATERIAL {
+        int id PK
+        char codigo UK
+        string descripcion
+        int id_categoria FK
+        int id_marca FK
+        int id_unidad FK
+        boolean habilitado
+    }
+    
+    UBICACION {
+        int id PK
+        int id_oficina FK
+        int id_almacen FK
+        string nombre
+        boolean habilitado
+        unique "id_oficina+id_almacen+nombre"
+    }
+    
+    SOLICITUD {
+        int id PK
+        char codigo UK
+        timestamp fecha
+        timestamp fecha_aprobacion
+        int id_tipo_sol FK
+        int id_proveedor FK
+        string origen
+        int idusuariosolicitante FK
+        int idusuarioaprobador FK
+        int idusuariomovimiento FK
+        string destino
+        string estado
+        longblob pdf
+        text observacion
+    }
+    
+    DETALLE_SOLICITUD {
+        int id PK
+        int id_solicitud FK
+        int id_material FK
+        int cantidad_solicitada
+    }
+    
+    STOCK {
+        int id PK
+        int id_material FK
+        int id_ubicacion FK
+        int cantidad_actual
+        int stock_minimo
+        string estado
+        boolean habilitado
+        unique "id_material+id_ubicacion"
+    }
+    
+    MOVIMIENTO {
+        int id PK
+        char codigo UK
+        int id_stock FK
+        int id_detalle FK
+        string estado
+        string motivo
+        timestamp fecha
+    }
+    
+    SOLICITUD_REGISTRO_MAT {
+        int id PK
+        char codigo UK
+        timestamp fecha
+        string titulo
+        int idusuariosolicitante FK
+        int idusuarioaprobador FK
+        string motivo
+        string estado
+        text observacion
+    }
+    
+    DETALLE_REGISTRO_MAT {
+        int id PK
+        int id_registro FK
+        string nombre
+        string unidad_sugerida
+        string categoria_sugerida
+        string marca_sugerida
+    }
+    
+    USUARIO {
+        int id PK
+        string nombre
+        string email UK
+        string password_hash
+        string avatar_iniciales
+        boolean habilitado
+        datetime ultimo_login_at
+        datetime created_at
+        datetime updated_at
+    }
+    
+    ROL {
+        int id PK
+        string codigo UK
+        string nombre
+        string descripcion
+        boolean habilitado
+        datetime created_at
+        datetime updated_at
+    }
+    
+    PERMISO {
+        int id PK
+        string codigo UK
+        string nombre
+        string descripcion
+        string modulo
+        boolean habilitado
+        datetime created_at
+        datetime updated_at
+    }
+    
+    USUARIO_ROL {
+        int user_id FK
+        int role_id FK
+        datetime created_at
+        PK "user_id+role_id"
+    }
+    
+    ROL_PERMISO {
+        int role_id FK
+        int permission_id FK
+        datetime created_at
+        PK "role_id+permission_id"
+    }
+    
+    USUARIO_OFICINA {
+        int user_id FK
+        int oficina_id FK
+        boolean es_default
+        datetime created_at
+        PK "user_id+oficina_id"
+    }
+    
+    MIGRACIONES {
+        int id PK
+        string archivo UK
+        datetime ejecutado_at
+    }
 ```
 
 ---
 
-## Descripción de Componentes
+## Descripción de Entidades Principales
 
-### 🔷 Core Framework
-- **Request**: Encapsula la solicitud HTTP
-- **Response**: Encapsula la respuesta HTTP
-- **Router**: Enrutador de aplicación
-- **Database**: Conexión a BD
-- **Auth**: Autenticación y autorización
-- **Session**: Gestión de sesiones
-- **View**: Motor de plantillas
-- **Url**: Generador de URLs
-- **Env**: Variables de entorno
+### 📦 Módulo de Inventario
 
-### 🔶 Modelos (Representan Entidades BD)
-- **UserModel**: Usuario del sistema
-- **MaterialModel**: Artículo de catálogo
-- **StockModel**: Inventario en ubicación
-- **SolicitudModel**: Solicitud entrada/salida
-- **UbicacionModel**: Lugar de almacenamiento
-- **OficinaModel**: Sucursal
-- **RoleModel**: Rol del sistema
-- **PermissionModel**: Permiso del sistema
-- **MovimientoModel**: Movimiento de stock
-- **InventarioModel**: Vista del inventario completo
+| Tabla | Descripción |
+|-------|-------------|
+| **MATERIAL** | Catálogo de artículos. Código único, descripción, categoría, marca, unidad. |
+| **STOCK** | Cantidad actual de cada material en cada ubicación. Calcula estado automáticamente (SIN STOCK, DISPONIBLE, STOCK BAJO). |
+| **UBICACION** | Lugar físico donde se almacena material (oficina + almacén + nombre). |
+| **MOVIMIENTO** | Registro de entrada/salida de materiales. Vinculado a detalle de solicitud y stock. |
 
-### 🟣 Repositorios (Acceso a Datos)
-- Patrón Repository: abstrae acceso a BD
-- Métodos CRUD genéricos
-- Consultas específicas del dominio
-- Ej: `UserRepository.findByEmail()`, `MaterialRepository.getConStockBajo()`
+### 🔄 Módulo de Solicitudes
 
-### 🔵 Servicios (Lógica de Negocio)
-- **SolicitudCreadorService**: Crear solicitudes (entrada/salida)
-- **SolicitudDecisionService**: Aprobar/rechazar solicitudes
-- **SolicitudEntradaService**: Procesar entrada de stock
-- **StockAjusteService**: Ajustar stock
-- **StockManualService**: Ajustes manuales desde admin
-- **RegistroMaterialCreadorService**: Crear registro de material nuevo
-- **RegistroMaterialDecisionService**: Atender/rechazar registro
+| Tabla | Descripción |
+|-------|-------------|
+| **SOLICITUD** | Solicitud de entrada/salida. Estados: Pendiente, Aprobada, Rechazada. Origen: normal o manual. |
+| **DETALLE_SOLICITUD** | Líneas de una solicitud (qué material y cuánto). |
+| **TIPO_SOLICITUD** | Catálogo: ENTRADA o SALIDA. |
 
-### 🟠 Controladores (Puntos de Entrada)
-- **AdminController**: Gestión admin (usuarios, roles)
-- **InventarioController**: Consultas de inventario
-- **SolicitudesController**: Gestión de solicitudes
-- **RegistroMaterialController**: Gestión de registro de materiales
-- **AuthController**: Autenticación
+### 📝 Módulo de Registro de Material
 
-### 🟡 Providers (Inyección de Dependencias)
-- **AppServiceProvider**: Servicios generales
-- **AuthServiceProvider**: Autenticación y autorización
-- **InventarioServiceProvider**: Servicios de inventario
+| Tabla | Descripción |
+|-------|-------------|
+| **SOLICITUD_REGISTRO_MAT** | Pedido de registro de material nuevo (aún no en catálogo). |
+| **DETALLE_REGISTRO_MAT** | Detalles del material sugerido (nombre, unidad, categoría, marca sugeridas). |
+
+### 🔐 Módulo de Autenticación y Autorización (RBAC)
+
+| Tabla | Descripción |
+|-------|-------------|
+| **USUARIO** | Cuentas de acceso al sistema (email + contraseña hash). |
+| **ROL** | Roles disponibles (SUPERADMIN, LOGISTICA, RRHH). |
+| **PERMISO** | Permisos atómicos del sistema (ej: crear_solicitud, aprobar_solicitud). |
+| **USUARIO_ROL** | Relación N:M usuario ↔ rol. |
+| **ROL_PERMISO** | Relación N:M rol ↔ permiso. |
+| **USUARIO_OFICINA** | Relación N:M usuario ↔ oficina (multi-oficina). |
+
+### 📍 Catálogos/Maestros
+
+| Tabla | Descripción |
+|-------|-------------|
+| **PROVEEDOR** | Empresas que abastecen materiales. |
+| **CATEGORIA** | Clasificación de materiales. |
+| **MARCA** | Fabricantes. |
+| **UNIDAD** | Unidades de medida (Unidad, Caja, Paquete, Litro, etc.). |
+| **ALMACEN** | Pisos/bodegas (ej: PISO 1). |
+| **OFICINA** | Sucursales (ej: PIURA, LIMA). |
 
 ---
 
-## Flujos de Interacción
+## Relaciones Clave
 
-### 1. Crear Solicitud de Entrada
+### Flujo de Solicitudes
 ```
-SolicitudesController.crearEntrada()
-    ↓
-SolicitudCreadorService.crearEntrada()
-    ↓
-SolicitudRepository.create()
-    ↓
-SolicitudModel.save()
-    ↓
-Database.execute()
+USUARIO crea → SOLICITUD → DETALLE_SOLICITUD ↔ MATERIAL
+                    ↓
+            TIPO_SOLICITUD (ENTRADA/SALIDA)
+                    ↓
+            USUARIO aprueba
+                    ↓
+            MOVIMIENTO (afecta STOCK)
 ```
 
-### 2. Aprobar Solicitud
+### Flujo de Registro de Material
 ```
-SolicitudesController.aprobar()
-    ↓
-SolicitudDecisionService.aprobar()
-    ├─ SolicitudRepository.update() → estado = 'Aprobada'
-    ├─ crearMovimientos()
-    │   ↓
-    │   MovimientoModel.create()
-    │   StockModel.update() → cantidad_actual (trigger calcula estado)
-    └─ AuthUser como aprobador
+USUARIO pide → SOLICITUD_REGISTRO_MAT → DETALLE_REGISTRO_MAT
+                        ↓
+                USUARIO atiende (admin)
 ```
 
-### 3. Consultar Inventario
+### Estructura de Autorización
 ```
-InventarioController.index()
-    ↓
-InventarioRepository.getInventarioCompleto()
-    ↓
-SELECT * FROM v_inventario_completo (Vista DB)
-    ↓
-Response.json(inventario)
+USUARIO → USUARIO_ROL → ROL → ROL_PERMISO → PERMISO
+USUARIO → USUARIO_OFICINA → OFICINA (multi-oficina)
 ```
 
-### 4. Ajuste Manual de Stock
+### Estructura de Inventario
 ```
-InventarioController.ajusteManual()
-    ↓
-StockManualService.crearAjusteManual()
-    ├─ SolicitudModel.create() (origen='manual')
-    └─ SolicitudDecisionService.aprobar()
-        ↓
-        StockModel.update() (cantidad)
+MATERIAL → STOCK ← UBICACION
+           ↑
+         MOVIMIENTO ← DETALLE_SOLICITUD
 ```
 
 ---
 
-## Convenciones de Código
+## Triggers Automáticos
 
-### Nombres de Tablas
-- Prefijo: `t_` (ej: `t_usuario`, `t_material`)
-- Minúsculas con guiones bajos
-- Singular o plural según contexto
+1. **trg_stock_estado_bi** (BEFORE INSERT en t_stock)
+   - Calcula estado automáticamente basado en cantidad vs mínimo
+   - SIN STOCK: cantidad = 0
+   - STOCK BAJO: 0 < cantidad ≤ stock_minimo
+   - DISPONIBLE: cantidad > stock_minimo
 
-### Nombres de Columnas
-- Minúsculas con guiones bajos
-- FK: `id_<tabla>` (ej: `id_material`, `id_oficina`)
-- Booleano: `habilitado`
-- Timestamps: `created_at`, `updated_at`
+2. **trg_stock_estado_bu** (BEFORE UPDATE en t_stock)
+   - Recalcula estado al actualizar cantidad/mínimo
 
-### Nombres de Clases
-- PascalCase
-- Modelos: `<Nombre>Model`
-- Repositories: `<Nombre>Repository`
-- Controllers: `<Nombre>Controller`
-- Services: `<Nombre>Service`
+---
 
-### Métodos
-- camelCase
-- Prefijo get/is/has para getters
-- Prefijo create/update/delete para mutadores
+## Vista Materializada
+
+**v_inventario_completo**: Consulta el inventario completo con toda la información asociada (material, stock, ubicación, almacén, oficina).
+
+```sql
+SELECT stock_id, material_id, material_codigo, material_descripcion,
+       categoria, marca, unidad, cantidad_actual, stock_minimo, estado,
+       ubicacion, almacen, oficina, habilitado
+FROM v_inventario_completo;
+```
+
+---
+
+## Permisos del Sistema (16 total)
+
+### Solicitudes (3)
+- `crear_solicitud` — Crear solicitud de salida
+- `crear_entrada` — Crear solicitud de entrada
+- `aprobar_solicitud` — Aprobar/rechazar solicitudes
+- `ver_solicitudes_propias` — Ver mis solicitudes
+- `ver_solicitudes_todas` — Ver todas las solicitudes
+
+### Registro de Material (4)
+- `pedir_registro_material` — Pedir registro
+- `atender_registro_material` — Atender registro
+- `ver_registro_material_propio` — Ver mis pedidos
+- `ver_registro_material_todos` — Ver todos los pedidos
+
+### Inventario (2)
+- `ver_inventario` — Consultar inventario
+- `administrar_inventario` — Administrar inventario
+
+### Administración (3)
+- `gestionar_usuarios` — Gestionar usuarios
+- `gestionar_roles` — Gestionar roles
+- `ver_permisos` — Consultar permisos
+- `gestionar_oficinas` — Gestionar oficinas
+
+---
+
+## Asignación de Permisos por Rol
+
+| Rol | Permisos |
+|-----|----------|
+| **SUPERADMIN** | Todos (16) |
+| **LOGISTICA** | crear_solicitud, ver_solicitudes_propias, ver_solicitudes_todas, aprobar_solicitud, pedir_registro_material, ver_registro_material_propio, ver_inventario (7) |
+| **RRHH** | crear_solicitud, ver_solicitudes_propias, pedir_registro_material, ver_registro_material_propio (4) |
 
